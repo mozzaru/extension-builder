@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       lang:
-        description: Extension language (en, ar, es, pt...)
+        description: Extension language (all, en, ar, es, pt...)
         required: true
       extension:
         description: Target extension name
@@ -47,11 +47,14 @@ jobs:
           java-version: 21
           distribution: zulu
 
+      - name: Set permission for gradlew
+        run: chmod +x ./gradlew
+
       - name: Build APK
         env:
           CI: false
         run: ./gradlew -p src ${{ env.EXTSLUG }}:assembleDebug
-
+          
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -53,7 +53,6 @@ jobs:
         run: |
           set -x
           projects=(src/*/*)
-
           echo "NUM_INDIVIDUAL_MODULES=${#projects[@]}" >> $GITHUB_ENV
 
       - id: generate-matrices
@@ -96,14 +95,34 @@ jobs:
           java-version: 21
           distribution: zulu
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install build-tools
+        run: sdkmanager "build-tools;29.0.3"
+
+      - name: Set permission for gradlew
+        run: chmod +x ./gradlew
+
       - name: Build extensions (chunk ${{ matrix.chunk }})
         env:
           CI_CHUNK_NUM: ${{ matrix.chunk }}
-        run: ./gradlew -p src assembleDebug
+        run: ./gradlew -p src assembleRelease
+
+      - name: Sign APKs (chunk ${{ matrix.chunk }})
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: src
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload APKs (chunk ${{ matrix.chunk }})
         uses: actions/upload-artifact@v7
         with:
           name: "individual-apks-${{ matrix.chunk }}"
-          path: "**/*.apk"
+          path: "**/*-signed.apk"
           retention-days: 1
+          

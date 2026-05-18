@@ -34,6 +34,7 @@ jobs:
           if [[ -z "${{ env.REPO }}" ]]; then
             echo "REPO=${{ github.repository_owner }}/aniyomi-extensions" >> $GITHUB_ENV
           fi
+
       - name: Clone Repository (Latest)
         uses: actions/checkout@v6
         with:
@@ -47,17 +48,34 @@ jobs:
           java-version: 21
           distribution: zulu
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install build-tools
+        run: sdkmanager "build-tools;29.0.3"
+
       - name: Set permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build APK
         env:
           CI: false
-        run: ./gradlew -p src ${{ env.EXTSLUG }}:assembleDebug
-          
+        run: ./gradlew -p src ${{ env.EXTSLUG }}:assembleRelease
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: src/${{ env.EXTPATH }}/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{github.event.inputs.lang}}-${{ github.event.inputs.extension }}
-          path: "src/${{ env.EXTPATH }}/build/outputs/apk/debug/*.apk"
-          retention-days: 1
+          name: ${{ github.event.inputs.lang }}-${{ github.event.inputs.extension }}
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          retention-days: 2
+          

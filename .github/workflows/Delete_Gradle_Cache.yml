@@ -1,0 +1,66 @@
+name: Delete Gradle Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch target (kosongkan untuk hapus semua branch)"
+        required: false
+        default: ''
+      confirm:
+        description: "Ketik 'yes' untuk konfirmasi hapus cache"
+        required: true
+        default: 'no'
+
+jobs:
+  delete-cache:
+    name: Delete Gradle Cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [[ "${{ github.event.inputs.confirm }}" != "yes" ]]; then
+            echo "❌ Konfirmasi tidak valid. Ketik 'yes' untuk melanjutkan."
+            exit 1
+          fi
+
+      - name: Delete Gradle cache
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.inputs.branch }}
+        run: |
+          echo "🔍 Mencari cache Gradle..."
+
+          # Tentukan filter branch
+          if [[ -n "$BRANCH" ]]; then
+            REF_FILTER="--ref refs/heads/$BRANCH"
+            echo "📌 Filter branch: $BRANCH"
+          else
+            REF_FILTER=""
+            echo "📌 Filter branch: semua branch"
+          fi
+
+          CACHE_IDS=$(gh cache list \
+            --repo ${{ github.repository }} \
+            --key "gradle-" \
+            $REF_FILTER \
+            --json id \
+            --jq '.[].id')
+
+          if [[ -z "$CACHE_IDS" ]]; then
+            echo "✅ Tidak ada cache Gradle yang ditemukan."
+            exit 0
+          fi
+
+          echo "🗑️ Cache yang akan dihapus:"
+          gh cache list \
+            --repo ${{ github.repository }} \
+            --key "gradle-" \
+            $REF_FILTER
+
+          echo "$CACHE_IDS" | while read -r ID; do
+            echo "Menghapus cache ID: $ID"
+            gh cache delete "$ID" --repo ${{ github.repository }}
+          done
+
+          echo "✅ Semua cache Gradle berhasil dihapus."

@@ -36,7 +36,7 @@ jobs:
           fi
 
       - name: Clone Repository (Latest)
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.REPO }}
           fetch-depth: 0
@@ -48,6 +48,15 @@ jobs:
           java-version: 21
           distribution: zulu
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
@@ -57,7 +66,6 @@ jobs:
       - name: Set permission for gradlew
         run: chmod +x ./gradlew
 
-      # Spotless check
       - name: Run Spotless check
         run: ./gradlew -p src ${{ env.EXTSLUG }}:spotlessCheck
 
@@ -82,4 +90,3 @@ jobs:
           name: ${{ github.event.inputs.lang }}-${{ github.event.inputs.extension }}
           path: ${{ steps.sign_app.outputs.signedReleaseFile }}
           retention-days: 3
-          
